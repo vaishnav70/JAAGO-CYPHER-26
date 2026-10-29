@@ -52,7 +52,7 @@ const state = {
   faceDetected: false,
   faceLockedSince: null,
   trackedFaceBox: null,
-  lastTrackedFaceBox: null,a
+  lastTrackedFaceBox: null,
   frontStableSince: null,
   distractionLostFaceSince: null,
 
