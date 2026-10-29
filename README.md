@@ -73,7 +73,7 @@ A 30-second check before a session: camera, face, lighting and baseline capture,
 
 **Set as Centre:** your natural front head position is captured as centre at the start of a session, and can be re-captured any time with the Set as Centre button. This matters because a laptop camera sees the head at different positions depending on posture, seat height and screen placement.
 
-### Safe Rest Assistant (new feature)
+### Safe Rest Assistant 
 Jaago now includes a dedicated **Safe Rest Assistant** that responds to repeated fatigue events in the timeline.
 
 - If there are 2 or more drowsy events or 3 or more distracted events, a rest card appears automatically.
@@ -84,8 +84,8 @@ Jaago now includes a dedicated **Safe Rest Assistant** that responds to repeated
 
 This adds a practical recovery step to the active vigilance system instead of only warning in the moment.
 
-### Journey Tracker (new feature)
-A new **Current Journey** panel tracks trip duration, distance and fatigue events in-session.
+### Journey Tracker 
+A **Current Journey** panel tracks trip duration, distance and fatigue events in-session.
 
 - Start time and elapsed drive time
 - Distance traveled (GPS when available)
@@ -97,8 +97,8 @@ A new **Current Journey** panel tracks trip duration, distance and fatigue event
 
 If geolocation is unavailable, the app falls back to a time-based journey model and shows a transparent notice instead of pretending GPS is working.
 
-### Glasses Mode & Eye Calibration (new feature)
-A new settings feature allows a user to compensate for glasses or lens glare.
+### Glasses Mode & Eye Calibration 
+A settings feature allows a user to compensate for glasses or lens glare.
 
 - **Glasses Mode** reduces false eye-closure readings caused by reflections and frames.
 - **Calibrate Eyes (2s)** captures a fresh baseline of eye openness so thresholds stay realistic for the current user.
