@@ -52,7 +52,7 @@ const state = {
   faceDetected: false,
   faceLockedSince: null,
   trackedFaceBox: null,
-  lastTrackedFaceBox: null,
+  lastTrackedFaceBox: null,a
   frontStableSince: null,
   distractionLostFaceSince: null,
 
@@ -214,6 +214,22 @@ const state = {
     isTimerRunning: false,
     viewState: 'main', // 'main' | 'check' | 'completed'
     hasCompletedRest: false
+  },
+
+  // Journey Tracker State (THIS journey only)
+  journey: {
+    isActive: false,
+    isEnded: false,
+    startTime: null,
+    elapsedSec: 0,
+    timerInterval: null,
+    distanceKm: 0.0,
+    lastPosition: null, // { lat, lon }
+    geoWatchId: null,
+    gpsUnavailable: false,
+    isSimulatingDistance: false,
+    simInterval: null,
+    fatigueEvents: 0
   },
 };
 
@@ -462,6 +478,32 @@ function cacheDOM() {
     btnReadyContinue:        document.getElementById('btn-ready-continue'),
     btnRestMore:             document.getElementById('btn-rest-more'),
     btnReopenSafeRest:       document.getElementById('btn-reopen-safe-rest'),
+
+    // Journey Tracker Card
+    journeyCard:             document.getElementById('journey-card'),
+    journeyStatusPill:       document.getElementById('journey-status-pill'),
+    journeyStatusText:       document.getElementById('journey-status-text'),
+    journeySimulatedWrap:    document.getElementById('journey-simulated-wrap'),
+    toggleSimJourney:        document.getElementById('toggle-sim-journey'),
+    valJourneyStart:         document.getElementById('val-journey-start'),
+    subJourneyStart:         document.getElementById('sub-journey-start'),
+    valJourneyElapsed:       document.getElementById('val-journey-elapsed'),
+    subJourneyElapsed:       document.getElementById('sub-journey-elapsed'),
+    valJourneyDistance:      document.getElementById('val-journey-distance'),
+    subJourneyDistance:      document.getElementById('sub-journey-distance'),
+    valJourneyEvents:        document.getElementById('val-journey-events'),
+    subJourneyEvents:        document.getElementById('sub-journey-events'),
+    journeyGpsNotice:        document.getElementById('journey-gps-notice'),
+    journeyGpsText:          document.getElementById('journey-gps-text'),
+    journeyRestAdvisory:     document.getElementById('journey-rest-advisory'),
+    restAdvisoryReason:      document.getElementById('rest-advisory-reason'),
+    btnStartJourney:         document.getElementById('btn-start-journey'),
+    btnEndJourney:           document.getElementById('btn-end-journey'),
+    btnNewJourney:           document.getElementById('btn-new-journey'),
+    journeySummaryBox:       document.getElementById('journey-summary-box'),
+    summaryJourneyDuration:  document.getElementById('summary-journey-duration'),
+    summaryJourneyDistance:  document.getElementById('summary-journey-distance'),
+    summaryJourneyEvents:    document.getElementById('summary-journey-events'),
   };
 }
 
@@ -3348,6 +3390,7 @@ function addTimelineRow(eventText, durationStr, category = 'focused', isExample 
   };
 
   row._detailData = detailData;
+  row._createdTimestamp = Date.now();
 
   if (!isExample) {
     state.sessionLogRecords.push(detailData);
@@ -3374,6 +3417,8 @@ function addTimelineRow(eventText, durationStr, category = 'focused', isExample 
 
   applyTimelineVisibility();
   updateSafeRestCardVisibility();
+  updateJourneyFatigueEvents();
+  checkJourneyRestRule();
 }
 
 // ─── Timeline Detail Modal (Rule 4: No New Page) ──────────────
@@ -4057,6 +4102,7 @@ function startDemoMode() {
   setCameraState('Live');
   updateCameraIconUI(true);
   updateTopBarLiveStatus();
+  syncJourneyDemoModeUI();
 
   goToDemoStage(1);
 }
@@ -4095,6 +4141,7 @@ function stopDemoMode() {
   if (dom.scoreSimulatedBadge) dom.scoreSimulatedBadge.classList.add('hidden');
   if (dom.demoControlsBar) dom.demoControlsBar.classList.add('hidden');
   if (dom.demoIllustrationView) dom.demoIllustrationView.classList.add('hidden');
+  syncJourneyDemoModeUI();
 
   // Restore camera standby state
   clearCanvasOverlay();
@@ -4509,6 +4556,295 @@ function reopenSafeRestTimer() {
   if (dom.safeRestMainView) dom.safeRestMainView.classList.remove('hidden');
   if (dom.safeRestCheckView) dom.safeRestCheckView.classList.add('hidden');
   if (dom.safeRestCompletedView) dom.safeRestCompletedView.classList.add('hidden');
+}
+
+// ─── Journey Tracker (THIS Journey Only - in-memory session tracker) ──────────
+function calculateHaversineDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's mean radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function updateJourneyDistanceDisplay() {
+  if (dom.valJourneyDistance) {
+    dom.valJourneyDistance.textContent = `${state.journey.distanceKm.toFixed(1)} km`;
+  }
+}
+
+function updateJourneyTimerDisplay() {
+  if (dom.valJourneyElapsed) {
+    dom.valJourneyElapsed.textContent = formatTimeHMS(state.journey.elapsedSec);
+  }
+}
+
+function updateJourneyFatigueEvents() {
+  if (!state.journey.startTime || !dom.timelineList) return;
+  const items = dom.timelineList.querySelectorAll('.timeline-item');
+  let count = 0;
+  items.forEach(item => {
+    const cat = item.getAttribute('data-category');
+    if (cat === 'drowsy' || cat === 'distracted') {
+      const ts = item._createdTimestamp || state.journey.startTime;
+      if (ts >= state.journey.startTime) {
+        count++;
+      }
+    }
+  });
+  state.journey.fatigueEvents = count;
+  if (dom.valJourneyEvents) {
+    dom.valJourneyEvents.textContent = String(count);
+  }
+}
+
+function checkJourneyRestRule() {
+  if (!state.journey.isActive && !state.journey.isEnded) {
+    if (dom.journeyRestAdvisory) dom.journeyRestAdvisory.classList.add('hidden');
+    return;
+  }
+
+  const isTimeRule = state.journey.elapsedSec >= 7200; // >= 2 hours
+  const isDistanceRule = state.journey.distanceKm >= 200; // >= 200 km
+  const isFatigueRule = state.journey.fatigueEvents >= 3; // >= 3 fatigue events
+
+  if (isTimeRule || isDistanceRule || isFatigueRule) {
+    let reason = 'Safety advisory';
+    if (isFatigueRule) {
+      reason = `${state.journey.fatigueEvents} fatigue events in this journey`;
+    } else if (isDistanceRule) {
+      reason = `${state.journey.distanceKm.toFixed(1)} km continuous travel`;
+    } else if (isTimeRule) {
+      reason = '2+ hours continuous driving';
+    }
+
+    if (dom.restAdvisoryReason) dom.restAdvisoryReason.textContent = reason;
+    if (dom.journeyRestAdvisory) dom.journeyRestAdvisory.classList.remove('hidden');
+  } else {
+    if (dom.journeyRestAdvisory) dom.journeyRestAdvisory.classList.add('hidden');
+  }
+}
+
+function handleGeolocationPosition(pos) {
+  if (!state.journey.isActive) return;
+  if (!pos || !pos.coords) return;
+
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  const acc = pos.coords.accuracy;
+
+  // If signal is too weak (accuracy > 150m) and no prior lock:
+  if (acc && acc > 150 && !state.journey.lastPosition) {
+    state.journey.gpsUnavailable = true;
+    if (dom.journeyGpsNotice) dom.journeyGpsNotice.classList.remove('hidden');
+    if (dom.journeyGpsText) dom.journeyGpsText.textContent = 'Distance unavailable — time-based journey';
+    return;
+  }
+
+  if (dom.journeyGpsNotice) dom.journeyGpsNotice.classList.add('hidden');
+  state.journey.gpsUnavailable = false;
+
+  if (state.journey.lastPosition) {
+    const deltaKm = calculateHaversineDistanceKm(
+      state.journey.lastPosition.lat,
+      state.journey.lastPosition.lon,
+      lat,
+      lon
+    );
+
+    // Filter out standing-still jitter (< 5 meters)
+    if (deltaKm > 0.005) {
+      state.journey.distanceKm += deltaKm;
+      updateJourneyDistanceDisplay();
+      checkJourneyRestRule();
+    }
+  }
+
+  state.journey.lastPosition = { lat, lon };
+}
+
+function handleGeolocationError(err) {
+  // If permission denied, GPS unavailable, or signal too weak:
+  state.journey.gpsUnavailable = true;
+  if (dom.journeyGpsNotice) dom.journeyGpsNotice.classList.remove('hidden');
+  if (dom.journeyGpsText) {
+    dom.journeyGpsText.textContent = 'Distance unavailable — time-based journey';
+  }
+}
+
+function startJourney() {
+  state.journey.isActive = true;
+  state.journey.isEnded = false;
+  state.journey.startTime = Date.now();
+  state.journey.elapsedSec = 0;
+  state.journey.distanceKm = 0.0;
+  state.journey.lastPosition = null;
+  state.journey.gpsUnavailable = false;
+  state.journey.fatigueEvents = 0;
+
+  const now = new Date(state.journey.startTime);
+  const timeStr = now.toTimeString().slice(0, 5); // HH:MM
+
+  if (dom.valJourneyStart) dom.valJourneyStart.textContent = timeStr;
+  if (dom.subJourneyStart) dom.subJourneyStart.textContent = 'Departure locked';
+  if (dom.valJourneyElapsed) dom.valJourneyElapsed.textContent = '00:00:00';
+  if (dom.valJourneyDistance) dom.valJourneyDistance.textContent = '0.0 km';
+  if (dom.valJourneyEvents) dom.valJourneyEvents.textContent = '0';
+  if (dom.journeyStatusPill) {
+    dom.journeyStatusPill.className = 'status-pill pill-live';
+  }
+  if (dom.journeyStatusText) dom.journeyStatusText.textContent = 'In progress';
+
+  if (dom.btnStartJourney) dom.btnStartJourney.classList.add('hidden');
+  if (dom.btnEndJourney) dom.btnEndJourney.classList.remove('hidden');
+  if (dom.btnNewJourney) dom.btnNewJourney.classList.add('hidden');
+  if (dom.journeySummaryBox) dom.journeySummaryBox.classList.add('hidden');
+  if (dom.journeyRestAdvisory) dom.journeyRestAdvisory.classList.add('hidden');
+  if (dom.journeyGpsNotice) dom.journeyGpsNotice.classList.add('hidden');
+
+  // Start elapsed timer (1s interval)
+  if (state.journey.timerInterval) clearInterval(state.journey.timerInterval);
+  state.journey.timerInterval = setInterval(() => {
+    state.journey.elapsedSec++;
+    updateJourneyTimerDisplay();
+    checkJourneyRestRule();
+  }, 1000);
+
+  // Request browser geolocation ONLY after user clicks Start journey
+  if (navigator && navigator.geolocation && !state.journey.isSimulatingDistance) {
+    try {
+      state.journey.geoWatchId = navigator.geolocation.watchPosition(
+        handleGeolocationPosition,
+        handleGeolocationError,
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
+      );
+    } catch (e) {
+      handleGeolocationError(e);
+    }
+  } else if (!state.journey.isSimulatingDistance) {
+    handleGeolocationError({ code: 2, message: 'Geolocation unsupported' });
+  }
+
+  // If in demo mode and simulated journey was checked, start simulation
+  if (state.isDemoMode && dom.toggleSimJourney && dom.toggleSimJourney.checked) {
+    startDistanceSimulation();
+  }
+}
+
+function endJourney() {
+  if (!state.journey.isActive && !state.journey.isEnded) return;
+
+  state.journey.isActive = false;
+  state.journey.isEnded = true;
+
+  if (state.journey.timerInterval) {
+    clearInterval(state.journey.timerInterval);
+    state.journey.timerInterval = null;
+  }
+  if (state.journey.simInterval) {
+    clearInterval(state.journey.simInterval);
+    state.journey.simInterval = null;
+  }
+  if (state.journey.geoWatchId && navigator && navigator.geolocation) {
+    try {
+      navigator.geolocation.clearWatch(state.journey.geoWatchId);
+    } catch (e) {}
+    state.journey.geoWatchId = null;
+  }
+
+  if (dom.journeyStatusPill) {
+    dom.journeyStatusPill.className = 'status-pill pill-waiting';
+  }
+  if (dom.journeyStatusText) dom.journeyStatusText.textContent = 'Completed';
+
+  if (dom.btnStartJourney) dom.btnStartJourney.classList.add('hidden');
+  if (dom.btnEndJourney) dom.btnEndJourney.classList.add('hidden');
+  if (dom.btnNewJourney) dom.btnNewJourney.classList.remove('hidden');
+
+  // Freeze summary
+  const finalDurationStr = formatTimeHMS(state.journey.elapsedSec);
+  const finalDistanceStr = `${state.journey.distanceKm.toFixed(1)} km`;
+  const finalEventsStr = String(state.journey.fatigueEvents);
+
+  if (dom.summaryJourneyDuration) dom.summaryJourneyDuration.textContent = finalDurationStr;
+  if (dom.summaryJourneyDistance) dom.summaryJourneyDistance.textContent = finalDistanceStr;
+  if (dom.summaryJourneyEvents) dom.summaryJourneyEvents.textContent = finalEventsStr;
+  if (dom.journeySummaryBox) dom.journeySummaryBox.classList.remove('hidden');
+}
+
+function resetJourney() {
+  endJourney();
+  state.journey.isActive = false;
+  state.journey.isEnded = false;
+  state.journey.startTime = null;
+  state.journey.elapsedSec = 0;
+  state.journey.distanceKm = 0.0;
+  state.journey.fatigueEvents = 0;
+  state.journey.lastPosition = null;
+  state.journey.gpsUnavailable = false;
+
+  if (dom.valJourneyStart) dom.valJourneyStart.textContent = '--:--';
+  if (dom.subJourneyStart) dom.subJourneyStart.textContent = 'Awaiting departure';
+  if (dom.valJourneyElapsed) dom.valJourneyElapsed.textContent = '00:00:00';
+  if (dom.valJourneyDistance) dom.valJourneyDistance.textContent = '0.0 km';
+  if (dom.valJourneyEvents) dom.valJourneyEvents.textContent = '0';
+
+  if (dom.journeyStatusPill) {
+    dom.journeyStatusPill.className = 'status-pill pill-cam-off';
+  }
+  if (dom.journeyStatusText) dom.journeyStatusText.textContent = 'Not started';
+
+  if (dom.btnStartJourney) dom.btnStartJourney.classList.remove('hidden');
+  if (dom.btnEndJourney) dom.btnEndJourney.classList.add('hidden');
+  if (dom.btnNewJourney) dom.btnNewJourney.classList.add('hidden');
+  if (dom.journeySummaryBox) dom.journeySummaryBox.classList.add('hidden');
+  if (dom.journeyRestAdvisory) dom.journeyRestAdvisory.classList.add('hidden');
+  if (dom.journeyGpsNotice) dom.journeyGpsNotice.classList.add('hidden');
+}
+
+function syncJourneyDemoModeUI() {
+  if (!dom.journeySimulatedWrap) return;
+  if (state.isDemoMode) {
+    dom.journeySimulatedWrap.classList.remove('hidden');
+  } else {
+    dom.journeySimulatedWrap.classList.add('hidden');
+    // Live mode must NEVER simulate distance
+    if (state.journey.isSimulatingDistance) {
+      stopDistanceSimulation();
+    }
+  }
+}
+
+function startDistanceSimulation() {
+  if (!state.isDemoMode) return; // Live mode must NEVER simulate distance
+  state.journey.isSimulatingDistance = true;
+
+  if (dom.journeySimulatedWrap) dom.journeySimulatedWrap.classList.remove('hidden');
+  if (dom.toggleSimJourney) dom.toggleSimJourney.checked = true;
+
+  if (state.journey.simInterval) clearInterval(state.journey.simInterval);
+  state.journey.simInterval = setInterval(() => {
+    if (!state.journey.isActive || !state.journey.isSimulatingDistance || !state.isDemoMode) {
+      stopDistanceSimulation();
+      return;
+    }
+    state.journey.distanceKm += 2.5;
+    updateJourneyDistanceDisplay();
+    checkJourneyRestRule();
+  }, 1000);
+}
+
+function stopDistanceSimulation() {
+  state.journey.isSimulatingDistance = false;
+  if (state.journey.simInterval) {
+    clearInterval(state.journey.simInterval);
+    state.journey.simInterval = null;
+  }
+  if (dom.toggleSimJourney) dom.toggleSimJourney.checked = false;
 }
 
 // ─── Sensitivity Presets (Rule 2) ─────────────────────────────
@@ -5025,6 +5361,20 @@ function setupGeneralUI() {
   if (dom.btnReadyContinue)  dom.btnReadyContinue.addEventListener('click', () => finishSafeRestCheck(true));
   if (dom.btnRestMore)       dom.btnRestMore.addEventListener('click', () => finishSafeRestCheck(false));
   if (dom.btnReopenSafeRest) dom.btnReopenSafeRest.addEventListener('click', reopenSafeRestTimer);
+
+  // Journey Tracker Controls
+  if (dom.btnStartJourney)   dom.btnStartJourney.addEventListener('click', startJourney);
+  if (dom.btnEndJourney)     dom.btnEndJourney.addEventListener('click', endJourney);
+  if (dom.btnNewJourney)     dom.btnNewJourney.addEventListener('click', resetJourney);
+  if (dom.toggleSimJourney) {
+    dom.toggleSimJourney.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        startDistanceSimulation();
+      } else {
+        stopDistanceSimulation();
+      }
+    });
+  }
 }
 
 // ─── Application Bootstrap ────────────────────────────────────
@@ -5210,10 +5560,44 @@ function initApp() {
       addTimelineRow('Drowsy — Eyes closed', '1.6s', 'drowsy');
       finishSafeRestCheck(true);
       dom.safeRestCard?.classList.remove('hidden');
+    } else if (window.location.hash === '#journey') {
+      resetJourney();
+    } else if (window.location.hash === '#journey-active') {
+      startJourney();
+      state.journey.elapsedSec = 1420;
+      state.journey.distanceKm = 24.6;
+      state.journey.gpsUnavailable = false;
+      if (dom.journeyGpsNotice) dom.journeyGpsNotice.classList.add('hidden');
+      updateJourneyTimerDisplay();
+      updateJourneyDistanceDisplay();
+    } else if (window.location.hash === '#journey-gps-denied') {
+      startJourney();
+      handleGeolocationError({ code: 1, message: 'User denied Geolocation' });
+    } else if (window.location.hash === '#journey-rest-rule') {
+      startJourney();
+      addTimelineRow('Drowsy — Eyes closed', '1.5s', 'drowsy');
+      addTimelineRow('Distracted — Looking LEFT', '1.8s', 'distracted');
+      addTimelineRow('Drowsy — Eyes closed', '1.6s', 'drowsy');
+      state.journey.fatigueEvents = 3;
+      if (dom.valJourneyEvents) dom.valJourneyEvents.textContent = '3';
+      checkJourneyRestRule();
+    } else if (window.location.hash === '#journey-simulated') {
+      startDemoMode();
+      startJourney();
+      startDistanceSimulation();
+      state.journey.distanceKm = 48.5;
+      updateJourneyDistanceDisplay();
+    } else if (window.location.hash === '#journey-ended') {
+      startJourney();
+      state.journey.elapsedSec = 3680;
+      state.journey.distanceKm = 62.4;
+      state.journey.fatigueEvents = 2;
+      endJourney();
     }
   }
 
   updateSafeRestCardVisibility();
+  syncJourneyDemoModeUI();
 }
 
 if (typeof window !== 'undefined') {
@@ -5229,6 +5613,19 @@ if (typeof window !== 'undefined') {
     showSafeRestCheckView,
     finishSafeRestCheck,
     reopenSafeRestTimer,
+    calculateHaversineDistanceKm,
+    updateJourneyTimerDisplay,
+    updateJourneyDistanceDisplay,
+    startJourney,
+    endJourney,
+    resetJourney,
+    handleGeolocationPosition,
+    handleGeolocationError,
+    checkJourneyRestRule,
+    updateJourneyFatigueEvents,
+    startDistanceSimulation,
+    stopDistanceSimulation,
+    syncJourneyDemoModeUI,
     addTimelineRow,
     setGlassesMode,
     startEyeCalibration,
