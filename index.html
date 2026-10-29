@@ -227,6 +227,8 @@
               <span class="status-dot dot-cam-state" aria-hidden="true"></span><span class="status-icon" aria-hidden="true">⊘</span> CAMERA OFF
             </span>
             <span id="video-simulated-pill" class="video-simulated-pill hidden">SIMULATED</span>
+            <span id="glasses-mode-pill" class="pill-glasses-mode hidden">Glasses mode ON</span>
+            <span id="weak-signal-pill" class="pill-weak-signal hidden">Eye signal weak</span>
             <span id="face-status-pill" class="status-pill pill-calibrating fixed-width-pill hidden">
               <span class="status-dot dot-calibrating" aria-hidden="true"></span><span class="status-icon" aria-hidden="true">◌</span> Calibrating
             </span>
@@ -433,6 +435,220 @@
               <span class="status-dot dot-waiting" aria-hidden="true"></span><span class="status-icon" aria-hidden="true">—</span> Waiting
             </span>
             <span class="contrib-subline" id="sub-lookaways">Waiting for face</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safe Rest Assistant Card (Isolated: Reads Session Timeline fatigue events) -->
+      <div id="safe-rest-card" class="card safe-rest-card hidden" role="region" aria-label="Safe Rest Assistant">
+        <!-- Main Rest Advisory View -->
+        <div id="safe-rest-main-view" class="safe-rest-view">
+          <div class="safe-rest-header">
+            <div class="safe-rest-title-group">
+              <span class="safe-rest-icon" aria-hidden="true">☕</span>
+              <h3 class="safe-rest-heading">Time for a safe rest</h3>
+            </div>
+            <span class="safe-rest-badge">FATIGUE ADVISORY</span>
+          </div>
+
+          <p class="safe-rest-warning-text">
+            Fatigue signals keep repeating. Stop at the nearest safe place as soon as you can do so safely — do not keep driving to reach a farther stop.
+          </p>
+
+          <!-- Rest Timer Box -->
+          <div class="safe-rest-timer-box">
+            <div id="safe-rest-presets-row" class="safe-rest-presets-row">
+              <span class="presets-label">Rest duration:</span>
+              <div class="preset-btn-group" role="group" aria-label="Rest duration presets">
+                <button type="button" class="btn-preset-time" data-minutes="10">10 min</button>
+                <button type="button" class="btn-preset-time active" data-minutes="15">15 min</button>
+                <button type="button" class="btn-preset-time" data-minutes="20">20 min</button>
+              </div>
+            </div>
+
+            <div class="safe-rest-countdown-wrap">
+              <div id="safe-rest-timer-display" class="safe-rest-timer-display">15:00</div>
+              <div id="safe-rest-timer-subtext" class="safe-rest-timer-subtext">Preset duration: 15 minutes</div>
+            </div>
+
+            <div class="safe-rest-actions-row">
+              <button type="button" id="btn-start-rest" class="btn-start-rest">Start rest</button>
+              <button type="button" id="btn-end-rest-early" class="btn-end-rest-early hidden">End rest early</button>
+            </div>
+          </div>
+
+          <!-- Location Honesty Notice -->
+          <div class="safe-rest-location-box">
+            <span class="location-icon" aria-hidden="true">ℹ</span>
+            <span class="location-text">No verified rest stops in this demo — use the nearest safe place you know.</span>
+          </div>
+        </div>
+
+        <!-- Post-Break Check View -->
+        <div id="safe-rest-check-view" class="safe-rest-view hidden">
+          <div class="safe-rest-header">
+            <div class="safe-rest-title-group">
+              <span class="safe-rest-icon" aria-hidden="true">✓</span>
+              <h3 class="safe-rest-heading">Post-Break Check</h3>
+            </div>
+            <span class="safe-rest-badge safe-rest-badge-check">SELF-CHECK</span>
+          </div>
+
+          <p class="safe-rest-check-instruction">
+            Verify your physical alertness before continuing to drive:
+          </p>
+
+          <div class="safe-rest-check-steps" role="list">
+            <div class="check-step-item" id="check-step-1" role="listitem">
+              <div class="step-checkbox" aria-hidden="true">✓</div>
+              <div class="step-content">
+                <strong class="step-title">1. Eyes open & alert</strong>
+                <span class="step-desc">Clear vision, no heavy eyelids or involuntary squinting</span>
+              </div>
+            </div>
+            <div class="check-step-item" id="check-step-2" role="listitem">
+              <div class="step-checkbox" aria-hidden="true">✓</div>
+              <div class="step-content">
+                <strong class="step-title">2. Look left-right</strong>
+                <span class="step-desc">Full neck rotation without stiffness; check mirrors and blind spots</span>
+              </div>
+            </div>
+            <div class="check-step-item" id="check-step-3" role="listitem">
+              <div class="step-checkbox" aria-hidden="true">✓</div>
+              <div class="step-content">
+                <strong class="step-title">3. Head steady</strong>
+                <span class="step-desc">Upright natural posture with steady head balance</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="safe-rest-check-actions">
+            <button type="button" id="btn-ready-continue" class="btn-ready-continue">Ready to continue</button>
+            <button type="button" id="btn-rest-more" class="btn-rest-more">Rest more</button>
+          </div>
+        </div>
+
+        <!-- Collapsed Completed View -->
+        <div id="safe-rest-completed-view" class="safe-rest-view hidden">
+          <div class="safe-rest-collapsed-bar">
+            <div class="collapsed-left">
+              <span class="collapsed-check" aria-hidden="true">✓</span>
+              <span class="collapsed-title">Rest completed</span>
+              <span class="collapsed-sep">•</span>
+              <span class="collapsed-desc">Operator confirmed alert</span>
+            </div>
+            <button type="button" id="btn-reopen-safe-rest" class="btn-text-sm collapsed-link">Rest timer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Isolated Journey Panel (THIS Journey Only - in-memory session tracker) -->
+      <div id="journey-card" class="card journey-card" role="region" aria-label="Journey Tracker">
+        <div class="journey-header">
+          <div class="journey-title-group">
+            <span class="journey-icon" aria-hidden="true">🛣</span>
+            <div class="journey-title-wrap">
+              <h3 class="journey-heading">Current Journey</h3>
+              <span class="journey-subheading">Active trip monitor · In-memory session</span>
+            </div>
+          </div>
+          <div class="journey-header-right">
+            <!-- Simulated Badge & Toggle (Visible ONLY when Demo Mode is ON) -->
+            <div id="journey-simulated-wrap" class="journey-simulated-wrap hidden">
+              <span id="journey-sim-badge" class="demo-badge-solid">SIMULATED</span>
+              <label class="toggle-sim-journey-label" for="toggle-sim-journey" title="Demonstrate distance and rest rule without driving">
+                <input type="checkbox" id="toggle-sim-journey" class="sr-only">
+                <span class="sim-journey-switch" aria-hidden="true"></span>
+                <span class="sim-journey-text">Simulate distance</span>
+              </label>
+            </div>
+            <span id="journey-status-pill" class="status-pill pill-cam-off">
+              <span class="status-dot dot-cam-state" aria-hidden="true"></span>
+              <span id="journey-status-text">Not started</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- 4 Metric Tiles: Start Time, Driving Time, Distance, Fatigue Events -->
+        <div class="journey-metrics-grid">
+          <div class="journey-metric-tile">
+            <span class="journey-metric-label">START TIME</span>
+            <div id="val-journey-start" class="journey-metric-val">--:--</div>
+            <span class="journey-metric-sub" id="sub-journey-start">Awaiting departure</span>
+          </div>
+
+          <div class="journey-metric-tile">
+            <span class="journey-metric-label">DRIVING TIME</span>
+            <div id="val-journey-elapsed" class="journey-metric-val">00:00:00</div>
+            <span class="journey-metric-sub" id="sub-journey-elapsed">Rule triggers at 2h</span>
+          </div>
+
+          <div class="journey-metric-tile">
+            <span class="journey-metric-label">DISTANCE</span>
+            <div id="val-journey-distance" class="journey-metric-val">0.0 km</div>
+            <span class="journey-metric-sub" id="sub-journey-distance">GPS tracking</span>
+          </div>
+
+          <div class="journey-metric-tile">
+            <span class="journey-metric-label">FATIGUE EVENTS</span>
+            <div id="val-journey-events" class="journey-metric-val">0</div>
+            <span class="journey-metric-sub" id="sub-journey-events">Drowsy + Distracted</span>
+          </div>
+        </div>
+
+        <!-- GPS Fallback / Signal Weak Notice (Visible when GPS denied, unavailable, or weak) -->
+        <div id="journey-gps-notice" class="journey-gps-notice hidden">
+          <span class="gps-notice-icon" aria-hidden="true">ℹ</span>
+          <span id="journey-gps-text" class="gps-notice-text">Distance unavailable — time-based journey</span>
+        </div>
+
+        <!-- Rest Recommendation Box (Triggered when: >= 2h driving OR >= 200 km OR >= 3 fatigue events) -->
+        <div id="journey-rest-advisory" class="journey-rest-advisory hidden" role="alert">
+          <div class="rest-advisory-header">
+            <span class="rest-advisory-badge">TAKE A SAFE REST</span>
+            <span id="rest-advisory-reason" class="rest-advisory-reason">3 fatigue events detected</span>
+          </div>
+          <p class="rest-advisory-text">
+            Stop at the nearest safe place as soon as you can do so safely — do not keep driving to reach a farther stop.
+          </p>
+          <div class="rest-advisory-footer">
+            <span class="location-icon" aria-hidden="true">ℹ</span>
+            <span class="rest-advisory-note">No verified rest stops in this demo — use the nearest safe place you know.</span>
+          </div>
+        </div>
+
+        <!-- Journey Controls: Start journey / End journey -->
+        <div class="journey-actions-bar">
+          <button type="button" id="btn-start-journey" class="btn btn-primary btn-start-journey">Start journey</button>
+          <button type="button" id="btn-end-journey" class="btn btn-secondary btn-end-journey hidden">End journey</button>
+          <button type="button" id="btn-new-journey" class="btn btn-primary btn-new-journey hidden">New journey</button>
+        </div>
+
+        <!-- Frozen Journey Summary (Visible after End Journey) -->
+        <div id="journey-summary-box" class="journey-summary-box hidden">
+          <div class="journey-summary-header">
+            <span class="summary-check-icon" aria-hidden="true">✓</span>
+            <strong class="summary-title">Journey Completed & Frozen</strong>
+          </div>
+          <div class="journey-summary-details">
+            <span class="summary-item">Duration: <strong id="summary-journey-duration">00:00:00</strong></span>
+            <span class="summary-sep">•</span>
+            <span class="summary-item">Distance: <strong id="summary-journey-distance">0.0 km</strong></span>
+            <span class="summary-sep">•</span>
+            <span class="summary-item">Fatigue events: <strong id="summary-journey-events">0</strong></span>
+          </div>
+        </div>
+
+        <!-- Honest History Section -->
+        <div class="journey-history-section">
+          <div class="journey-history-header">
+            <span class="history-title">JOURNEY HISTORY</span>
+          </div>
+          <div class="journey-history-empty">
+            <span class="history-empty-icon" aria-hidden="true">📂</span>
+            <p class="history-empty-text">
+              No previous journeys saved yet — history saving comes after the event. This panel shows the current journey only.
+            </p>
           </div>
         </div>
       </div>
@@ -674,6 +890,28 @@
           <span>1.5s (Balanced)</span>
           <span>3.0s (Relaxed)</span>
         </div>
+      </div>
+
+      <!-- 2b. Glasses Mode & Eye Calibration -->
+      <div class="setting-item">
+        <div class="setting-toggle-row">
+          <div class="setting-text-group">
+            <span class="setting-label">GLASSES MODE</span>
+            <span class="setting-subtext">Compensates for lens reflections & frames using relative eye calibration</span>
+          </div>
+          <button id="toggle-glasses-mode" class="toggle-switch" type="button" role="switch" aria-checked="false">
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+        <div style="margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button id="btn-calibrate-eyes" class="btn btn-secondary btn-sm" type="button" style="padding: 6px 14px; font-size: 12px;">
+            Calibrate eyes (2s)
+          </button>
+          <span id="calibrate-eyes-status" class="badge-status-subtle hidden">Calibrating…</span>
+        </div>
+        <span id="calibrate-eyes-info" class="muted-text" style="font-size: 11px; margin-top: 6px; display: block;">
+          Look naturally at the camera with eyes open for 2s. Closure counts below ~45% of baseline.
+        </span>
       </div>
 
       <!-- 3. Look-away Distraction Trigger Slider -->
